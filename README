@@ -1,0 +1,13 @@
+KigraSoft Simple Profile Tool (kspt)
+
+kspt is just a simple and quick way to profile different computers.
+Depending on the situation, I tend to bounce between various computers
+and I am often currious of the relevent performance of the computers.
+The initial version is primarily focused on CPU performance and
+perhaps some memory performance also.
+
+To build and run from the git repo:
+  > autoreconf --install
+  > ./configure
+  > make
+  > src/kspt
