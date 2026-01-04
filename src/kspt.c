@@ -1,8 +1,24 @@
 /*
- * KigraSoft Simple Profile Tool
- *
- * kspt.c
- */
+ KigraSoft Simple Profile Tool
+ 
+ kspt.c
+
+ Copyright 2026 Stephen R. Kifer
+ 
+ This file is free software: you can redistribute it and/or modify it
+ under the terms of the GNU General Public License as published by the
+ Free Software Foundation; either version 3.0 of the License, or (at
+ your option) any later version.
+
+ This file is distributed in the hope that it will be useful, but
+ WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see
+ <https://www.gnu.org/licenses/>.
+*/
 
 #include <config.h>
 #include <stdlib.h>
@@ -13,46 +29,42 @@
 #include <threads.h>
 
 const long nanosec = 1000000000;
-
-struct sieve_data {
-	int test_limit;
-};
-
-struct factorial_data {
-	int n;
-};
-
-struct fibonacci_data {
-	int n;
+struct process_data {
+	int    (*funct_ptr)(void*);
+	uint32_t cycles;
+	uint32_t a;
+	uint32_t b;
+	char    *title;
 };
 
 int
 prime_sieve(void *param)
 {
-	struct sieve_data *sdata = param;
-	int test_limit = sdata->test_limit;
-	int n = 2;
-	int count = 0;
+	struct process_data *sdata = param;
+	uint32_t test_limit = sdata->a;
+	uint32_t n = 2;
+	uint32_t count = 0;
+	uint32_t i = 0;
 
-	bool *test_range = malloc(test_limit + 1);
+	bool *test_range = malloc((test_limit + 1) * sizeof(bool));
 	if (test_range == NULL) {
 		return 0;
 	}
 
 	test_range[0] = false;
 	test_range[1] = false;
-	for (int i = 2; i <= test_limit; i++) {
+	for (i = 2; i <= test_limit; i++) {
 		test_range[i] = true;
 	}
 
 	while (n < test_limit) {
-		for (int i = n + n; i <= test_limit; i = i + n) {
+		for (i = n + n; i <= test_limit; i = i + n) {
 			test_range[i] = false;
 		}
 		n++;
 	}
 
-	for (int i = 2; i <= test_limit; i++) {
+	for (i = 2; i <= test_limit; i++) {
 		if (test_range[i] == true) {
 			count++;
 		}
@@ -64,38 +76,35 @@ prime_sieve(void *param)
 }
 
 int
-factorial(void *param) {
-	struct factorial_data *fdata = param;
-	int n = fdata->n;
-	int a = 1;
-	uint64_t r = 1;
-
-	while (a <= n) {
-		r = r * a;
-		a++;
-	}
-
-	return r;
-}
-
-int
-fibonacci(void *param)
+rand_sort(void *param)
 {
-	struct fibonacci_data *fdata = param;
-	int n = fdata->n;
-	int a = 2;
-	uint64_t r0 = 0;
-	uint64_t r1 = 1;
-	uint64_t r  = 0;
+	struct process_data *pdata = param;
+	int n = pdata->a;
+	int seed = 0;
+	int tmp = 0;
 
-	while (a <= n) {
-		r = r0 + r1;
-		r0 = r1;
-		r1 = r;
-		a++;
+	int *numbers = malloc(n * sizeof(int));
+	if (numbers == NULL) {
+		return 0;
 	}
 
-	return r;
+	for (int i = 0; i < n; i++) {
+		numbers[i] = rand_r(&seed);
+	}
+
+	for (int i = n; i > 0; i--) {
+		for (int j = 1; j < i; j++) {
+			if (numbers[j-1] > numbers[j]) {
+				tmp = numbers[j-1];
+				numbers[j-1] = numbers[j];
+				numbers[j] = tmp;
+			}
+		}
+	}
+
+	free(numbers);
+
+	return 0;
 }
 
 long
@@ -138,62 +147,47 @@ time_function_threaded(int funct_ptr(void*), void *funct_param, int cycles) {
 }
 
 int
+test_function(void *funct_param) {
+	struct process_data *pdata = funct_param;
+	uint32_t count = 0;
+	long total_time = 0;
+	double total_seconds = 0.0;
+
+	printf("Test Function: %s\n", pdata->title);
+	total_time = time_function(pdata->funct_ptr, pdata, pdata->cycles);
+	total_seconds = (double)total_time / nanosec;
+
+	//printf("  Single - Total Time:     %li\n", total_time);
+	printf("  Single - Total Seconds:  %.8g\n", total_seconds);
+
+	total_time = time_function_threaded(pdata->funct_ptr, pdata, pdata->cycles);
+	total_seconds = (double)total_time / nanosec;
+
+	//printf("  Mulit  - Total Time:     %li\n", total_time);
+	printf("  Multi  - Total Seconds:  %.8g\n", total_seconds);
+
+	return 0;
+}
+
+int
 main()
 {
 	int count;
 	long total_time;
 	double total_seconds = 0.0;
-	struct sieve_data sdata;
-	sdata.test_limit = 1000 * 1000 * 10;
-	int cycles = 16;
+	struct process_data pdata;
+	pdata.cycles = 32;
+	pdata.b = 1;
 
-	// for prime_sieve 1000 x 1000 = approx. 1M memory usage
-	total_time = time_function(&prime_sieve, &sdata, cycles);
-	total_seconds = (double)total_time / nanosec;
-
-	printf("Prime Sieve\n");
-	printf("Single - Total time:     %li\n", total_time);
-	printf("Single - Total seconds:  %.8g\n", total_seconds);
-
-	total_time = time_function_threaded(&prime_sieve, &sdata, cycles);
-	total_seconds = (double)total_time / nanosec;
-
-	printf("Mulit  - Total time:     %li\n", total_time);
-	printf("Multi  - Total seconds:  %.8g\n", total_seconds);
-
-	struct factorial_data fdata;
-	fdata.n = 20;
-	cycles = 50;
-
-	total_time = time_function(&factorial, &fdata, cycles);
-	total_seconds = (double)total_time / nanosec;
-
-	printf("Factorial\n");
-	printf("Single - Total time:     %li\n", total_time);
-	printf("Single - Total seconds:  %.8g\n", total_seconds);
-
-	total_time = time_function_threaded(&factorial, &fdata, cycles);
-	total_seconds = (double)total_time / nanosec;
+	pdata.funct_ptr = &prime_sieve;
+	pdata.a = 1000 * 1000 * 10; // for prime_sieve 1000 x 1000 = approx. 1M memory usage
+	pdata.title = "Prime Sieve";
+	test_function(&pdata);
 	
-	printf("Mulit  - Total time:     %li\n", total_time);
-	printf("Multi  - Total seconds:  %.8g\n", total_seconds);
-
-	struct fibonacci_data fibdata;
-	fibdata.n = 90;
-	cycles = 16;
-
-	total_time = time_function(&fibonacci, &fibdata, cycles);
-	total_seconds = (double)total_time / nanosec;
-
-	printf("Fibonacci\n");
-	printf("Single - Total time:     %li\n", total_time);
-	printf("Single - Total seconds:  %.8g\n", total_seconds);
-
-	total_time = time_function_threaded(&fibonacci, &fibdata, cycles);
-	total_seconds = (double)total_time / nanosec;
-	
-	printf("Mulit  - Total time:     %li\n", total_time);
-	printf("Multi  - Total seconds:  %.8g\n", total_seconds);
-
+	pdata.funct_ptr = &rand_sort;
+	pdata.a = 1000 * 20;
+	pdata.title = "Bubble Sort of Random Numbers";
+	test_function(&pdata);
+		
 	return 0;
 }

@@ -1,4 +1,4 @@
-AC_INIT([kspt], [0.1], [dev@kigra.com])
+AC_INIT([kspt], [0.2], [dev@kigra.com])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_PROG_CC
 AC_CONFIG_HEADERS([config.h])

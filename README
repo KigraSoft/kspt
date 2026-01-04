@@ -8,6 +8,6 @@ perhaps some memory performance also.
 
 To build and run from the git repo:
   > autoreconf --install
-  > ./configure
+  > ./configure CFLAGS='-O0'
   > make
   > src/kspt
